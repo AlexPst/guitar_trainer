@@ -1,6 +1,7 @@
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:guitar_trainer/engine/lesson_playback.dart';
 import 'package:guitar_trainer/engine/note_event.dart';
 import 'package:guitar_trainer/engine/note_result.dart';
 import 'package:guitar_trainer/game/feedback.dart';
@@ -17,7 +18,7 @@ void main() {
   LessonGame create() {
     t = FakeTime();
     final game = LessonGame(lesson: testLesson(), now: t.source);
-    for (final name in [Overlays.hud, Overlays.menu, Overlays.finished]) {
+    for (final name in [Overlays.hud, Overlays.menu]) {
       game.overlays.addEntry(name, (_, _) => const SizedBox());
     }
     return game;
@@ -57,7 +58,7 @@ void main() {
     expect(game.combo.value, 0);
     expect(game.scoreKeeper.maxCombo, 2);
     // Feedback label for the late note was shown.
-    expect(game.overlays.isActive(Overlays.finished), isTrue);
+    expect(game.playback.phase, PlaybackPhase.finished);
   });
 
   testWithGame<LessonGame>('feedback components appear', create, (game) async {
@@ -113,7 +114,7 @@ void main() {
     runTo(game, 2);
     game.addNoteEvents(pluck(2, 52));
     runTo(game, 3);
-    expect(game.overlays.isActive(Overlays.finished), isTrue);
+    expect(game.playback.phase, PlaybackPhase.finished);
     expect(game.notes.map((n) => n.judgement), everyElement(Judgement.hit));
   });
 

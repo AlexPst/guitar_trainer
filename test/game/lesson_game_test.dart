@@ -20,7 +20,7 @@ void main() {
       metronome: sink,
       now: t.source,
     );
-    for (final name in [Overlays.hud, Overlays.menu, Overlays.finished]) {
+    for (final name in [Overlays.hud, Overlays.menu]) {
       game.overlays.addEntry(name, (_, _) => const SizedBox());
     }
     return game;
@@ -90,7 +90,7 @@ void main() {
       }
     }
     expect(game.playback.phase, PlaybackPhase.finished);
-    expect(game.overlays.isActive(Overlays.finished), isTrue);
+    expect(game.playback.phase, PlaybackPhase.finished);
     // 4 count-in clicks + beats 0..4 (bar line after the 3 notes).
     expect(sink.played.map((p) => p.$1.index), [
       for (var i = -4; i <= 4; i++) i,

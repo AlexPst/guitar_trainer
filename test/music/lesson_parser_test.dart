@@ -138,8 +138,8 @@ void main() {
             .toList()
           ..sort((a, b) => a.path.compareTo(b.path));
 
-    test('there are 3 to 5 lessons for now', () {
-      expect(files.length, inInclusiveRange(3, 5));
+    test('10 to 20 lessons, as in the spec', () {
+      expect(files.length, inInclusiveRange(10, 20));
     });
 
     final ids = <String>{};

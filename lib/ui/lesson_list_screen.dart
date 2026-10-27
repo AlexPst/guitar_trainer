@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/lesson_repository.dart';
+import '../data/progress_repository.dart';
 import '../music/lesson.dart';
 import 'flame_sandbox_screen.dart';
 import 'lesson_screen.dart';
 import 'mic_test_screen.dart';
+import 'result_screen.dart';
 import 'tuner_screen.dart';
 
 /// Main menu: list of lessons plus entry points to the tuner and debug screens.
@@ -19,6 +21,8 @@ class LessonListScreen extends ConsumerWidget {
             .push(MaterialPageRoute<void>(builder: (_) => screen));
 
     final lessons = ref.watch(lessonsProvider);
+    // Progress that failed to load just shows as "nothing played yet".
+    final progress = ref.watch(progressProvider).value ?? const {};
     return Scaffold(
       appBar: AppBar(
         title: const Text('Уроки'),
@@ -45,12 +49,7 @@ class LessonListScreen extends ConsumerWidget {
         AsyncData(:final value) when value.isEmpty => const Center(
           child: Text('Уроков нет'),
         ),
-        AsyncData(:final value) => ListView.separated(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: value.length,
-          separatorBuilder: (_, _) => const Divider(height: 1),
-          itemBuilder: (context, i) => _LessonTile(entry: value[i], index: i),
-        ),
+        AsyncData(:final value) => _buildList(value, progress),
         AsyncError(:final error) => Center(
           child: Text('Не удалось загрузить уроки: $error'),
         ),
@@ -60,11 +59,45 @@ class LessonListScreen extends ConsumerWidget {
   }
 }
 
+Widget _buildList(
+  List<LessonEntry> entries,
+  Map<String, LessonProgress> progress,
+) {
+  // Broken files are skipped when deciding what the "previous lesson" is.
+  final ids = [
+    for (final e in entries)
+      if (e.lesson != null) e.lesson!.id,
+  ];
+  final flags = unlockedFlags(ids, progress);
+  final unlocked = {for (var i = 0; i < ids.length; i++) ids[i]: flags[i]};
+  return ListView.separated(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    itemCount: entries.length,
+    separatorBuilder: (_, _) => const Divider(height: 1),
+    itemBuilder: (context, i) {
+      final id = entries[i].lesson?.id;
+      return _LessonTile(
+        entry: entries[i],
+        index: i,
+        progress: progress[id],
+        unlocked: unlocked[id] ?? false,
+      );
+    },
+  );
+}
+
 class _LessonTile extends StatelessWidget {
-  const _LessonTile({required this.entry, required this.index});
+  const _LessonTile({
+    required this.entry,
+    required this.index,
+    required this.progress,
+    required this.unlocked,
+  });
 
   final LessonEntry entry;
   final int index;
+  final LessonProgress? progress;
+  final bool unlocked;
 
   @override
   Widget build(BuildContext context) {
@@ -77,9 +110,25 @@ class _LessonTile extends StatelessWidget {
         subtitle: Text('${entry.error}'),
       );
     }
+    final p = progress;
     return ListTile(
-      leading: CircleAvatar(child: Text('${index + 1}')),
+      // Locked lessons look disabled but still explain themselves on tap.
+      textColor: unlocked ? null : Theme.of(context).disabledColor,
+      iconColor: unlocked ? null : Theme.of(context).disabledColor,
+      leading: CircleAvatar(
+        child: unlocked ? Text('${index + 1}') : const Icon(Icons.lock),
+      ),
       title: Text(lesson.title),
+      trailing: p == null
+          ? null
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                StarsRow(stars: p.stars, size: 18),
+                Text('${(p.bestAccuracy * 100).round()}%'),
+              ],
+            ),
       subtitle: Text(
         [
           if (lesson.description != null) lesson.description!,
@@ -87,9 +136,21 @@ class _LessonTile extends StatelessWidget {
         ].join('\n'),
       ),
       isThreeLine: lesson.description != null,
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => LessonScreen(lesson: lesson)),
-      ),
+      onTap: unlocked
+          ? () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => LessonScreen(lesson: lesson),
+              ),
+            )
+          : () => ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Получите хотя бы одну звезду в предыдущем уроке',
+                  ),
+                ),
+              ),
     );
   }
 }

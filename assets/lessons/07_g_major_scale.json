@@ -1,0 +1,27 @@
+{
+  "id": "scales_03",
+  "title": "Гамма соль мажор",
+  "description": "От соль большой октавы вверх и вниз",
+  "bpm": 80,
+  "timeSignature": [
+    4,
+    4
+  ],
+  "notes": [
+    {"beat": 0, "string": 6, "fret": 3, "duration": 1},
+    {"beat": 1, "string": 5, "fret": 0, "duration": 1},
+    {"beat": 2, "string": 5, "fret": 2, "duration": 1},
+    {"beat": 3, "string": 5, "fret": 3, "duration": 1},
+    {"beat": 4, "string": 4, "fret": 0, "duration": 1},
+    {"beat": 5, "string": 4, "fret": 2, "duration": 1},
+    {"beat": 6, "string": 4, "fret": 4, "duration": 1},
+    {"beat": 7, "string": 3, "fret": 0, "duration": 1},
+    {"beat": 8, "string": 4, "fret": 4, "duration": 1},
+    {"beat": 9, "string": 4, "fret": 2, "duration": 1},
+    {"beat": 10, "string": 4, "fret": 0, "duration": 1},
+    {"beat": 11, "string": 5, "fret": 3, "duration": 1},
+    {"beat": 12, "string": 5, "fret": 2, "duration": 1},
+    {"beat": 13, "string": 5, "fret": 0, "duration": 1},
+    {"beat": 14, "string": 6, "fret": 3, "duration": 4}
+  ]
+}

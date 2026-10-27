@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../engine/lesson_playback.dart';
+import '../engine/lesson_result.dart';
 import '../engine/metronome_scheduler.dart';
 import '../engine/note_event.dart';
 import '../engine/note_result.dart';
@@ -20,7 +21,6 @@ import 'layout.dart';
 abstract final class Overlays {
   static const hud = 'hud';
   static const menu = 'menu';
-  static const finished = 'finished';
 }
 
 enum LessonMode {
@@ -42,13 +42,17 @@ class LessonGame extends FlameGame {
     this.metronome,
     TimeSource? now,
     this.calibrationOffset = 0,
+    LessonMode mode = LessonMode.tempo,
+    double speed = 1,
   }) : playback = LessonPlayback(lesson, clock: SongClock(now: now)),
+       modeNotifier = ValueNotifier(mode),
        super(
          camera: CameraComponent.withFixedResolution(
            width: SceneLayout.width,
            height: SceneLayout.height,
          ),
        ) {
+    playback.speed = speed;
     _scheduler = _newScheduler();
   }
 
@@ -62,13 +66,14 @@ class LessonGame extends FlameGame {
   /// Analysis delay of heard notes; see [TempoScorer.inputLag].
   double inputLag = 0;
 
-  final modeNotifier = ValueNotifier<LessonMode>(LessonMode.tempo);
+  final ValueNotifier<LessonMode> modeNotifier;
   LessonMode get mode => modeNotifier.value;
 
   late MetronomeScheduler _scheduler;
   TempoScorer? _scorer;
   WaitModeSession? _wait;
   final scoreKeeper = ScoreKeeper();
+  late List<NoteResult?> _noteResults = List.filled(lesson.notes.length, null);
 
   /// For overlays; updated from [update] and [addNoteEvents].
   final progress = ValueNotifier<double>(0);
@@ -134,6 +139,7 @@ class LessonGame extends FlameGame {
     for (final n in notes) {
       n.judgement = null;
     }
+    _noteResults = List.filled(lesson.notes.length, null);
     scoreKeeper.reset();
     score.value = 0;
     combo.value = 0;
@@ -209,6 +215,7 @@ class LessonGame extends FlameGame {
   void _apply(NoteResult r) {
     final note = notes[r.noteIndex];
     note.judgement = r.judgement;
+    _noteResults[r.noteIndex] = r;
     scoreKeeper.add(r);
     score.value = scoreKeeper.score;
     combo.value = scoreKeeper.combo;
@@ -283,12 +290,15 @@ class LessonGame extends FlameGame {
     } else {
       overlays.remove(Overlays.menu);
     }
-    if (playback.phase == PlaybackPhase.finished) {
-      overlays.add(Overlays.finished);
-    } else {
-      overlays.remove(Overlays.finished);
-    }
   }
+
+  /// Outcome of the current run; meaningful once [phase] is finished.
+  LessonResult result() => LessonResult.fromNotes(
+    lesson,
+    _noteResults,
+    scored: mode == LessonMode.tempo,
+    maxCombo: scoreKeeper.maxCombo,
+  );
 
   @override
   void lifecycleStateChange(AppLifecycleState state) {

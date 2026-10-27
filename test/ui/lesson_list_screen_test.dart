@@ -5,6 +5,7 @@ import 'package:guitar_trainer/data/lesson_repository.dart';
 import 'package:guitar_trainer/music/lesson.dart';
 import 'package:guitar_trainer/music/lesson_parser.dart';
 import 'package:guitar_trainer/ui/lesson_list_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _lesson = Lesson(
   id: 'a',
@@ -24,6 +25,8 @@ Widget app(List<LessonEntry> entries) => ProviderScope(
 );
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('shows lessons with stats', (tester) async {
     await tester.pumpWidget(app([const LessonEntry.ok('a.json', _lesson)]));
     await tester.pump();
@@ -78,5 +81,40 @@ void main() {
       '101 нота',
       '111 нот',
     ]);
+  });
+
+  testWidgets('stars and locks from saved progress', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'progress.a': '{"bestAccuracy":0.84,"bestScore":84,"stars":2}',
+    });
+    const second = Lesson(
+      id: 'b',
+      title: 'Второй',
+      bpm: 60,
+      timeSignature: TimeSignature(4, 4),
+      notes: [TabNote(beat: 0, string: 1, fret: 0, duration: 1)],
+    );
+    const third = Lesson(
+      id: 'c',
+      title: 'Третий',
+      bpm: 60,
+      timeSignature: TimeSignature(4, 4),
+      notes: [TabNote(beat: 0, string: 1, fret: 0, duration: 1)],
+    );
+    await tester.pumpWidget(
+      app(const [
+        LessonEntry.ok('a.json', _lesson),
+        LessonEntry.ok('b.json', second),
+        LessonEntry.ok('c.json', third),
+      ]),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('84%'), findsOneWidget);
+    expect(find.byIcon(Icons.star_rounded), findsNWidgets(2));
+    // b is open (a has stars), c is locked (b has none).
+    expect(find.byIcon(Icons.lock), findsOneWidget);
+    await tester.tap(find.text('Третий'));
+    await tester.pump();
+    expect(find.textContaining('хотя бы одну звезду'), findsOneWidget);
   });
 }

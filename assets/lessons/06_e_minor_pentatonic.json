@@ -1,0 +1,35 @@
+{
+  "id": "scales_02",
+  "title": "Пентатоника ми минор",
+  "description": "Открытая позиция, вверх и вниз",
+  "bpm": 80,
+  "timeSignature": [
+    4,
+    4
+  ],
+  "notes": [
+    {"beat": 0, "string": 6, "fret": 0, "duration": 1},
+    {"beat": 1, "string": 6, "fret": 3, "duration": 1},
+    {"beat": 2, "string": 5, "fret": 0, "duration": 1},
+    {"beat": 3, "string": 5, "fret": 2, "duration": 1},
+    {"beat": 4, "string": 4, "fret": 0, "duration": 1},
+    {"beat": 5, "string": 4, "fret": 2, "duration": 1},
+    {"beat": 6, "string": 3, "fret": 0, "duration": 1},
+    {"beat": 7, "string": 3, "fret": 2, "duration": 1},
+    {"beat": 8, "string": 2, "fret": 0, "duration": 1},
+    {"beat": 9, "string": 2, "fret": 3, "duration": 1},
+    {"beat": 10, "string": 1, "fret": 0, "duration": 1},
+    {"beat": 11, "string": 1, "fret": 3, "duration": 1},
+    {"beat": 12, "string": 1, "fret": 0, "duration": 1},
+    {"beat": 13, "string": 2, "fret": 3, "duration": 1},
+    {"beat": 14, "string": 2, "fret": 0, "duration": 1},
+    {"beat": 15, "string": 3, "fret": 2, "duration": 1},
+    {"beat": 16, "string": 3, "fret": 0, "duration": 1},
+    {"beat": 17, "string": 4, "fret": 2, "duration": 1},
+    {"beat": 18, "string": 4, "fret": 0, "duration": 1},
+    {"beat": 19, "string": 5, "fret": 2, "duration": 1},
+    {"beat": 20, "string": 5, "fret": 0, "duration": 1},
+    {"beat": 21, "string": 6, "fret": 3, "duration": 1},
+    {"beat": 22, "string": 6, "fret": 0, "duration": 4}
+  ]
+}

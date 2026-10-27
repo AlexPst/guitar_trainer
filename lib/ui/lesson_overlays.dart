@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../engine/lesson_playback.dart';
 import '../engine/song_clock.dart';
-import '../engine/note_result.dart';
 import '../game/lesson_game.dart';
 
 /// Top bar over the game: title, tempo, progress and pause button.
@@ -147,42 +146,6 @@ class _LessonMenuState extends State<LessonMenu> {
   }
 }
 
-class LessonFinished extends StatelessWidget {
-  const LessonFinished({super.key, required this.game, required this.onExit});
-
-  final LessonGame game;
-  final VoidCallback onExit;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Panel(
-      children: [
-        Text(
-          'Урок пройден',
-          style: Theme.of(context).textTheme.headlineSmall,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        Text(game.lesson.title, textAlign: TextAlign.center),
-        const SizedBox(height: 12),
-        Text(
-          _summary(game),
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        const SizedBox(height: 16),
-        FilledButton.icon(
-          icon: const Icon(Icons.replay),
-          label: const Text('Ещё раз'),
-          onPressed: game.start,
-        ),
-        const SizedBox(height: 8),
-        TextButton(onPressed: onExit, child: const Text('К списку уроков')),
-      ],
-    );
-  }
-}
-
 class _Panel extends StatelessWidget {
   const _Panel({required this.children});
 
@@ -209,18 +172,6 @@ class _Panel extends StatelessWidget {
       ),
     );
   }
-}
-
-String _summary(LessonGame game) {
-  final c = game.scoreKeeper.counts;
-  final played = c[Judgement.hit]! + c[Judgement.early]! + c[Judgement.late]!;
-  final total = game.lesson.notes.length;
-  if (game.mode == LessonMode.wait) return 'Сыграно нот: $played из $total';
-  return 'Счёт: ${game.scoreKeeper.score} · сыграно $played из $total\n'
-      'Точно ${c[Judgement.hit]}, рано/поздно '
-      '${c[Judgement.early]! + c[Judgement.late]!}, октава ${c[Judgement.octave]}, '
-      'не та нота ${c[Judgement.wrongPitch]}, промах ${c[Judgement.miss]}\n'
-      'Лучшая серия: ${game.scoreKeeper.maxCombo}';
 }
 
 /// Score and combo in tempo mode.

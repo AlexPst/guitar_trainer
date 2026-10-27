@@ -3,25 +3,36 @@ import 'dart:async';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../audio/mic_capture.dart';
 import '../audio/note_event_source.dart';
 import '../audio/soloud_metronome.dart';
+import '../data/progress_repository.dart';
+import '../engine/lesson_playback.dart';
 import '../game/lesson_game.dart';
 import '../music/lesson.dart';
 import 'lesson_overlays.dart';
+import 'result_screen.dart';
 
 /// Game screen of one lesson. Forces landscape on phones while open.
-class LessonScreen extends StatefulWidget {
-  const LessonScreen({super.key, required this.lesson});
+class LessonScreen extends ConsumerStatefulWidget {
+  const LessonScreen({
+    super.key,
+    required this.lesson,
+    this.initialMode = LessonMode.tempo,
+    this.initialSpeed = 1,
+  });
 
   final Lesson lesson;
+  final LessonMode initialMode;
+  final double initialSpeed;
 
   @override
-  State<LessonScreen> createState() => _LessonScreenState();
+  ConsumerState<LessonScreen> createState() => _LessonScreenState();
 }
 
-class _LessonScreenState extends State<LessonScreen> {
+class _LessonScreenState extends ConsumerState<LessonScreen> {
   SoloudMetronome? _metronome;
   LessonGame? _game;
   final _mic = MicCapture();
@@ -49,7 +60,15 @@ class _LessonScreenState extends State<LessonScreen> {
       problems.add('Метроном недоступен: $e');
     }
     if (!mounted) return;
-    final game = LessonGame(lesson: widget.lesson, metronome: _metronome);
+    final game = LessonGame(
+      lesson: widget.lesson,
+      metronome: _metronome,
+      mode: widget.initialMode,
+      speed: widget.initialSpeed,
+    );
+    game.phase.addListener(() {
+      if (game.phase.value == PlaybackPhase.finished) _onFinished(game);
+    });
     setState(() => _game = game);
 
     try {
@@ -88,6 +107,28 @@ class _LessonScreenState extends State<LessonScreen> {
 
   void _exit() => Navigator.of(context).pop();
 
+  bool _finishing = false;
+
+  Future<void> _onFinished(LessonGame game) async {
+    if (_finishing) return;
+    _finishing = true;
+    final result = game.result();
+    final outcome = await ref.read(progressProvider.notifier).record(result);
+    // Let the last hit effects play out before leaving.
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => ResultScreen(
+          result: result,
+          isNewBest: outcome == RecordOutcome.improved,
+          mode: game.mode,
+          speed: game.playback.speed,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final game = _game;
@@ -102,8 +143,6 @@ class _LessonScreenState extends State<LessonScreen> {
                 Overlays.hud: (_, LessonGame g) => LessonHud(game: g),
                 Overlays.menu: (_, LessonGame g) =>
                     LessonMenu(game: g, onExit: _exit),
-                Overlays.finished: (_, LessonGame g) =>
-                    LessonFinished(game: g, onExit: _exit),
               },
             ),
     );
