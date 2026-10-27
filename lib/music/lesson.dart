@@ -71,4 +71,37 @@ class Lesson {
 
   /// Bars needed to hold all notes, counting a partial last bar.
   int get barCount => (lengthInBeats / timeSignature.beatsPerBar).ceil();
+
+  /// 1-based bar a note starts in.
+  int barOf(TabNote note) => note.beat ~/ timeSignature.beatsPerBar + 1;
+
+  /// Bars [fromBar]..[toBar] (1-based, inclusive) as a lesson of their own,
+  /// starting at beat 0. Notes ringing past [toBar] are cut at its end.
+  /// Returns null if those bars hold no notes.
+  Lesson? excerpt(int fromBar, int toBar) {
+    final perBar = timeSignature.beatsPerBar;
+    final start = (fromBar - 1) * perBar;
+    final end = toBar * perBar;
+    final picked = [
+      for (final n in notes)
+        if (n.beat >= start && n.beat < end)
+          TabNote(
+            beat: n.beat - start,
+            string: n.string,
+            fret: n.fret,
+            duration: n.beat + n.duration > end ? end - n.beat : n.duration,
+          ),
+    ];
+    if (picked.isEmpty) return null;
+    return Lesson(
+      id: '$id#$fromBar-$toBar',
+      title: fromBar == toBar
+          ? '$title (такт $fromBar)'
+          : '$title (такты $fromBar–$toBar)',
+      bpm: bpm,
+      timeSignature: timeSignature,
+      notes: List.unmodifiable(picked),
+      description: description,
+    );
+  }
 }

@@ -8,6 +8,7 @@ import '../engine/lesson_result.dart';
 import '../engine/metronome_scheduler.dart';
 import '../engine/note_event.dart';
 import '../engine/note_result.dart';
+import '../engine/practice.dart';
 import '../engine/score_keeper.dart';
 import '../engine/song_clock.dart';
 import '../engine/tempo_scorer.dart';
@@ -44,10 +45,16 @@ class LessonGame extends FlameGame {
     this.calibrationOffset = 0,
     this.hitWindow = 0.12,
     this.leftHanded = false,
+    this.loop = false,
     LessonMode mode = LessonMode.tempo,
     double speed = 1,
-  }) : playback = LessonPlayback(lesson, clock: SongClock(now: now)),
-       modeNotifier = ValueNotifier(mode),
+  }) : playback = LessonPlayback(
+         lesson,
+         clock: SongClock(now: now),
+         // In a loop each pass ends exactly on the bar line.
+         tailSeconds: loop ? _gapToBarLine(lesson) : 1.0,
+       ),
+       modeNotifier = ValueNotifier(loop ? LessonMode.tempo : mode),
        super(
          camera: CameraComponent.withFixedResolution(
            width: SceneLayout.width,
@@ -64,6 +71,20 @@ class LessonGame extends FlameGame {
 
   /// Input latency, seconds; see [TempoScorer.calibrationOffset].
   final double calibrationOffset;
+
+  static double _gapToBarLine(Lesson l) =>
+      l.barCount * l.timeSignature.beatsPerBar * l.secondsPerBeat -
+      l.lengthInSeconds;
+
+  /// Practice loop: the lesson (usually an excerpt) restarts after each pass
+  /// and the tempo adapts to how the pass went. Never finishes by itself.
+  final bool loop;
+
+  /// Number of the current pass in a loop, from 1.
+  final pass = ValueNotifier<int>(1);
+
+  /// Accuracy of the previous pass in a loop, 0..1.
+  final lastPassAccuracy = ValueNotifier<double?>(null);
 
   /// See [TempoScorer.hitWindow].
   final double hitWindow;
@@ -154,7 +175,12 @@ class LessonGame extends FlameGame {
     _refreshOverlays();
   }
 
-  void start() {
+  /// Starts from the count-in. In a loop [nextPass] keeps the pass counter.
+  void start({bool nextPass = false}) {
+    if (!nextPass) {
+      pass.value = 1;
+      lastPassAccuracy.value = null;
+    }
     for (final n in notes) {
       n.judgement = null;
     }
@@ -265,7 +291,11 @@ class LessonGame extends FlameGame {
       metronome?.cancelPending();
       // Notes still open when the song ends were not played.
       _scorer?.advance(double.infinity).forEach(_apply);
-      _refreshOverlays();
+      if (loop) {
+        _nextPass();
+      } else {
+        _refreshOverlays();
+      }
     }
     if (_isRunning && metronome != null) {
       _scheduler.due(playback.time).forEach(metronome!.schedule);
@@ -295,7 +325,8 @@ class LessonGame extends FlameGame {
       }
     }
     _countIn.show(playback.countInBeat);
-    progress.value = playback.progress;
+    // Quantized so the HUD rebuilds a few times a second, not every frame.
+    progress.value = (playback.progress * 500).round() / 500;
     phase.value = playback.phase;
   }
 
@@ -312,11 +343,21 @@ class LessonGame extends FlameGame {
     }
   }
 
+  void _nextPass() {
+    final accuracy = result().accuracy;
+    final speed = nextSpeed(playback.speed, accuracy);
+    // Restart first so the phase never reports "finished" to listeners.
+    start(nextPass: true);
+    lastPassAccuracy.value = accuracy;
+    pass.value++;
+    setSpeed(speed);
+  }
+
   /// Outcome of the current run; meaningful once [phase] is finished.
   LessonResult result() => LessonResult.fromNotes(
     lesson,
     _noteResults,
-    scored: mode == LessonMode.tempo,
+    scored: mode == LessonMode.tempo && !loop,
     maxCombo: scoreKeeper.maxCombo,
   );
 

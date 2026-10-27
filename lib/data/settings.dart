@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'progress_repository.dart';
 
+enum AppTheme { system, light, dark }
+
 /// User settings. Values are clamped to their ranges on creation.
 class Settings {
   Settings({
@@ -13,6 +15,7 @@ class Settings {
     double metronomeVolume = 0.8,
     double hitWindow = 0.12,
     this.leftHanded = false,
+    this.theme = AppTheme.system,
   }) : calibrationOffset = calibrationOffset.clamp(
          minCalibration,
          maxCalibration,
@@ -30,6 +33,7 @@ class Settings {
       metronomeVolume: read('metronomeVolume', 0.8),
       hitWindow: read('hitWindow', 0.12),
       leftHanded: json['leftHanded'] == true,
+      theme: AppTheme.values.asNameMap()[json['theme']] ?? AppTheme.system,
     );
   }
 
@@ -53,6 +57,8 @@ class Settings {
   /// Mirror the tab: hit line on the right, notes moving left to right.
   final bool leftHanded;
 
+  final AppTheme theme;
+
   /// Level below which the mic counts as silence: −35 dBFS at 0% up to
   /// −65 dBFS at 100% sensitivity (−50 by default).
   double get micThresholdDbfs => -35 - 30 * micSensitivity;
@@ -63,12 +69,14 @@ class Settings {
     double? metronomeVolume,
     double? hitWindow,
     bool? leftHanded,
+    AppTheme? theme,
   }) => Settings(
     calibrationOffset: calibrationOffset ?? this.calibrationOffset,
     micSensitivity: micSensitivity ?? this.micSensitivity,
     metronomeVolume: metronomeVolume ?? this.metronomeVolume,
     hitWindow: hitWindow ?? this.hitWindow,
     leftHanded: leftHanded ?? this.leftHanded,
+    theme: theme ?? this.theme,
   );
 
   Map<String, Object?> toJson() => {
@@ -77,6 +85,7 @@ class Settings {
     'metronomeVolume': metronomeVolume,
     'hitWindow': hitWindow,
     'leftHanded': leftHanded,
+    'theme': theme.name,
   };
 }
 

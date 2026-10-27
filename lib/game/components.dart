@@ -1,3 +1,5 @@
+import 'dart:ui' show Picture, PictureRecorder;
+
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart' show Colors;
 import 'package:flutter/painting.dart';
@@ -23,6 +25,26 @@ class TabHighwayComponent extends Component with HasGameReference<LessonGame> {
         ..color = const Color(0xFFB8A99A)
         ..strokeWidth = 1 + s * 0.5,
   ];
+
+  /// Strings never change: recorded once, replayed every frame.
+  Picture? _stringsPicture;
+
+  Picture _recordStrings() {
+    final recorder = PictureRecorder();
+    final c = Canvas(recorder);
+    for (var s = 1; s <= SceneLayout.stringCount; s++) {
+      final y = SceneLayout.stringY(s);
+      c.drawLine(Offset(0, y), Offset(SceneLayout.width, y), _strings[s - 1]);
+    }
+    return recorder.endRecording();
+  }
+
+  @override
+  void onRemove() {
+    _stringsPicture?.dispose();
+    _stringsPicture = null;
+    super.onRemove();
+  }
 
   @override
   void render(Canvas canvas) {
@@ -50,14 +72,8 @@ class TabHighwayComponent extends Component with HasGameReference<LessonGame> {
       );
     }
 
-    for (var s = 1; s <= SceneLayout.stringCount; s++) {
-      final y = SceneLayout.stringY(s);
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(SceneLayout.width, y),
-        _strings[s - 1],
-      );
-    }
+    // Over the beat lines.
+    canvas.drawPicture(_stringsPicture ??= _recordStrings());
   }
 }
 
@@ -69,23 +85,28 @@ class HitLineComponent extends Component with HasGameReference<LessonGame> {
     ..color = Colors.amber
     ..strokeWidth = 4;
 
+  late final Rect _glowRect;
+  late final Offset _top;
+  late final Offset _bottom;
+
+  @override
+  void onLoad() {
+    final x = game.hitX;
+    _glowRect = Rect.fromLTRB(
+      x - 12,
+      SceneLayout.highwayTop,
+      x + 12,
+      SceneLayout.highwayBottom,
+    );
+    _top = Offset(x, SceneLayout.highwayTop - 10);
+    _bottom = Offset(x, SceneLayout.highwayBottom + 10);
+  }
+
   @override
   void render(Canvas canvas) {
-    final x = game.hitX;
-    canvas.drawRect(
-      Rect.fromLTRB(
-        x - 12,
-        SceneLayout.highwayTop,
-        x + 12,
-        SceneLayout.highwayBottom,
-      ),
-      _glow,
-    );
-    canvas.drawLine(
-      Offset(x, SceneLayout.highwayTop - 10),
-      Offset(x, SceneLayout.highwayBottom + 10),
-      _line,
-    );
+    canvas
+      ..drawRect(_glowRect, _glow)
+      ..drawLine(_top, _bottom, _line);
   }
 }
 
@@ -141,8 +162,17 @@ class NoteComponent extends PositionComponent {
 
   late final TextComponent _label;
 
+  /// Tail in local coordinates; depends only on length and direction.
+  late final RRect _tail;
+
   @override
   Future<void> onLoad() async {
+    const r = SceneLayout.noteRadius;
+    final tail = length * SceneLayout.pixelsPerSecond;
+    const radius = Radius.circular(7);
+    _tail = mirrored
+        ? RRect.fromLTRBR(r - tail, r - 7, r, r + 7, radius)
+        : RRect.fromLTRBR(r, r - 7, r + tail, r + 7, radius);
     _label = TextComponent(
       text: '${note.fret}',
       anchor: Anchor.center,
@@ -158,20 +188,27 @@ class NoteComponent extends PositionComponent {
     add(_label);
   }
 
+  /// Whether any part (circle or tail) is on screen.
+  bool get isVisible {
+    const r = SceneLayout.noteRadius;
+    final tail = length * SceneLayout.pixelsPerSecond;
+    final x = position.x;
+    final left = mirrored ? x - tail - r : x - r;
+    final right = mirrored ? x + r : x + tail + r;
+    return right >= 0 && left <= SceneLayout.width;
+  }
+
+  @override
+  void renderTree(Canvas canvas) {
+    // Most notes of a lesson are off screen; skip them and their label.
+    if (isVisible) super.renderTree(canvas);
+  }
+
   @override
   void render(Canvas canvas) {
     const r = SceneLayout.noteRadius;
-    final tail = length * SceneLayout.pixelsPerSecond;
     canvas.drawRRect(
-      mirrored
-          ? RRect.fromLTRBR(r - tail, r - 7, r, r + 7, const Radius.circular(7))
-          : RRect.fromLTRBR(
-              r,
-              r - 7,
-              r + tail,
-              r + 7,
-              const Radius.circular(7),
-            ),
+      _tail,
       judgement == null ? _tails[state]! : _judgedTails[judgement]!,
     );
     canvas.drawCircle(

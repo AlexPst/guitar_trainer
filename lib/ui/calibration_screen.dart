@@ -5,7 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../audio/mic_capture.dart';
-import '../audio/note_event_source.dart';
+import '../audio/isolate_note_event_source.dart';
 import '../audio/soloud_metronome.dart';
 import '../data/settings.dart';
 import '../engine/calibration.dart';
@@ -35,8 +35,9 @@ class _CalibrationScreenState extends ConsumerState<CalibrationScreen>
 
   final _mic = MicCapture();
   SoloudMetronome? _metronome;
-  NoteEventSource? _source;
+  IsolateNoteEventSource? _source;
   StreamSubscription<Object>? _micSub;
+  StreamSubscription<Object>? _eventsSub;
   late final Ticker _ticker = createTicker(_tick);
 
   final _clock = SongClock();
@@ -64,18 +65,24 @@ class _CalibrationScreenState extends ConsumerState<CalibrationScreen>
       _metronome = await SoloudMetronome.create()
         ..volume = settings.metronomeVolume;
       await _mic.start();
-      final source = NoteEventSource(
+      final source = await IsolateNoteEventSource.spawn(
         sampleRate: _mic.sampleRate,
         minLevelDbfs: settings.micThresholdDbfs,
       );
+      if (!mounted) {
+        await source.dispose();
+        return;
+      }
       _source = source;
-      _micSub = _mic.samples.listen((chunk) {
-        final events = source.add(chunk, songTime: _clock.time);
+      _eventsSub = source.events.listen((events) {
         if (_stage != _Stage.running) return;
         for (final e in events) {
           if (e.onset) _onsets.add(e.time);
         }
       });
+      _micSub = _mic.samples.listen(
+        (chunk) => source.add(chunk, songTime: _clock.time),
+      );
     } on Object catch (e) {
       _error = '$e';
     }
@@ -128,6 +135,8 @@ class _CalibrationScreenState extends ConsumerState<CalibrationScreen>
   void dispose() {
     _ticker.dispose();
     _micSub?.cancel();
+    _eventsSub?.cancel();
+    _source?.dispose();
     _mic.dispose();
     _metronome?.dispose();
     super.dispose();

@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../audio/mic_capture.dart';
-import '../audio/note_event_source.dart';
+import '../audio/isolate_note_event_source.dart';
 import '../audio/soloud_metronome.dart';
 import '../data/progress_repository.dart';
 import '../data/settings.dart';
@@ -23,9 +23,13 @@ class LessonScreen extends ConsumerStatefulWidget {
     required this.lesson,
     this.initialMode = LessonMode.tempo,
     this.initialSpeed = 1,
+    this.loop = false,
   });
 
   final Lesson lesson;
+
+  /// Practice loop of an excerpt; see [LessonGame.loop].
+  final bool loop;
   final LessonMode initialMode;
   final double initialSpeed;
 
@@ -37,12 +41,19 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
   SoloudMetronome? _metronome;
   LessonGame? _game;
   final _mic = MicCapture();
-  NoteEventSource? _source;
+  IsolateNoteEventSource? _source;
   StreamSubscription<Object>? _micSub;
+  StreamSubscription<Object>? _eventsSub;
+
+  /// Lesson screens alive right now. When one replaces another, the old one
+  /// is disposed after the new one starts; only the last one may restore the
+  /// normal orientation and system bars.
+  static int _alive = 0;
 
   @override
   void initState() {
     super.initState();
+    _alive++;
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
@@ -74,6 +85,7 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
       calibrationOffset: settings.calibrationOffset,
       hitWindow: settings.hitWindow,
       leftHanded: settings.leftHanded,
+      loop: widget.loop,
     );
     game.phase.addListener(() {
       if (game.phase.value == PlaybackPhase.finished) _onFinished(game);
@@ -82,21 +94,26 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
 
     try {
       await _mic.start();
-      final source = NoteEventSource(
+      final source = await IsolateNoteEventSource.spawn(
         sampleRate: _mic.sampleRate,
         minLevelDbfs: settings.micThresholdDbfs,
       );
+      if (!mounted) {
+        await source.dispose();
+        return;
+      }
       _source = source;
       // Events lag the sound by the analysis delay plus one mic chunk.
       game.inputLag = source.delay + 0.05;
-      _micSub = _mic.samples.listen((chunk) {
-        final events = source.add(
+      _eventsSub = source.events.listen(game.addNoteEvents);
+      // Song time is read here, when the chunk arrives, not in the isolate.
+      _micSub = _mic.samples.listen(
+        (chunk) => source.add(
           chunk,
           songTime: game.playback.time,
           speed: game.playback.speed,
-        );
-        if (events.isNotEmpty) game.addNoteEvents(events);
-      });
+        ),
+      );
     } on Object catch (e) {
       problems.add('Микрофон недоступен, ноты не оцениваются: $e');
     }
@@ -106,18 +123,53 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
     }
   }
 
+  /// Stops capture and analysis; safe to call more than once.
+  Future<void> _releaseAudio() async {
+    await _micSub?.cancel();
+    await _eventsSub?.cancel();
+    _micSub = null;
+    _eventsSub = null;
+    await _mic.stop();
+    await _source?.dispose();
+    _source = null;
+    _game?.metronome?.cancelPending();
+  }
+
   @override
   void dispose() {
-    _micSub?.cancel();
+    _releaseAudio();
     _mic.dispose();
-    _source?.reset();
     _metronome?.dispose();
-    SystemChrome.setPreferredOrientations([]);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    if (--_alive == 0) {
+      SystemChrome.setPreferredOrientations([]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
     super.dispose();
   }
 
   void _exit() => Navigator.of(context).pop();
+
+  Future<void> _practice(LessonGame game, int fromBar, int toBar) async {
+    final excerpt = widget.lesson.excerpt(fromBar, toBar);
+    if (excerpt == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('В этих тактах нет нот')));
+      return;
+    }
+    // The new screen opens before this one is disposed: hand the mic over
+    // first, or our late cleanup would stop the new screen's capture.
+    await _releaseAudio();
+    if (!mounted) return;
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => LessonScreen(
+          lesson: excerpt,
+          loop: true,
+          initialSpeed: game.playback.speed,
+        ),
+      ),
+    );
+  }
 
   bool _finishing = false;
 
@@ -153,8 +205,13 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
               initialActiveOverlays: const [Overlays.hud, Overlays.menu],
               overlayBuilderMap: {
                 Overlays.hud: (_, LessonGame g) => LessonHud(game: g),
-                Overlays.menu: (_, LessonGame g) =>
-                    LessonMenu(game: g, onExit: _exit),
+                Overlays.menu: (_, LessonGame g) => LessonMenu(
+                  game: g,
+                  onExit: _exit,
+                  onPracticeFragment: widget.loop
+                      ? null
+                      : (from, to) => _practice(g, from, to),
+                ),
               },
             ),
     );

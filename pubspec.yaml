@@ -60,6 +60,7 @@ dev_dependencies:
 flutter:
   assets:
     - assets/lessons/
+    - assets/icon/
 
 
   # The following line ensures that the Material Icons font is

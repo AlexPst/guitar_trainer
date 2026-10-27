@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Same warm gradient as the legacy icon (AppIconArt). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:startColor="#FFFF8A3D"
+        android:endColor="#FFB8360F" />
+</shape>

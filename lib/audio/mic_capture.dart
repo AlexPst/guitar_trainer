@@ -14,6 +14,9 @@ class MicPermissionDenied implements Exception {
 }
 
 /// Captures mono float32 PCM from the default input device.
+///
+/// The recorder is one per app; [stop] only shuts it down if this instance
+/// started it, so a screen closing late can't kill the next screen's capture.
 class MicCapture {
   MicCapture({this.sampleRate = 44100});
 
@@ -21,6 +24,7 @@ class MicCapture {
   final _recorder = Recorder.instance;
   final _controller = StreamController<Float32List>.broadcast();
   StreamSubscription<AudioDataContainer>? _sub;
+  bool _running = false;
 
   /// Sample chunks. The buffer is reused by the plugin: copy it if you keep it.
   Stream<Float32List> get samples => _controller.stream;
@@ -42,11 +46,14 @@ class MicCapture {
       (data) => _controller.add(bytesToFloat32(data.rawData)),
     );
     _recorder.startStreamingData();
+    _running = true;
   }
 
   Future<void> stop() async {
     await _sub?.cancel();
     _sub = null;
+    if (!_running) return;
+    _running = false;
     if (_recorder.isInitialized) {
       _recorder.stopStreamingData();
       _recorder.stop();

@@ -5,6 +5,7 @@ import '../data/lesson_repository.dart';
 import '../data/progress_repository.dart';
 import '../engine/lesson_result.dart';
 import '../engine/note_result.dart';
+import '../engine/practice.dart';
 import '../game/feedback.dart';
 import '../game/lesson_game.dart';
 import '../music/lesson.dart';
@@ -57,6 +58,8 @@ class ResultScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final next = _nextLesson(ref);
+    final hard = result.scored && result.stars < 3 ? hardestBars(result) : null;
+    final hardExcerpt = hard == null ? null : lesson.excerpt(hard.$1, hard.$2);
     final text = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(title: Text(lesson.title)),
@@ -64,12 +67,20 @@ class ResultScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           if (result.scored) ...[
-            StarsRow(stars: result.stars, size: 56),
+            StarsRow(stars: result.stars, size: 56, animate: true),
             const SizedBox(height: 8),
-            Text(
-              '${(result.accuracy * 100).round()}%',
-              textAlign: TextAlign.center,
-              style: text.displayMedium?.copyWith(fontWeight: FontWeight.bold),
+            // Counts up from 0 to the result.
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: result.accuracy * 100),
+              duration: const Duration(milliseconds: 900),
+              curve: Curves.easeOutCubic,
+              builder: (context, v, _) => Text(
+                '${v.round()}%',
+                textAlign: TextAlign.center,
+                style: text.displayMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             if (isNewBest)
               Center(
@@ -128,6 +139,25 @@ class ResultScreen extends ConsumerWidget {
                 label: const Text('Ещё раз'),
                 onPressed: () => _play(context, lesson, sameSettings: true),
               ),
+              if (hard != null && hardExcerpt != null)
+                FilledButton.tonalIcon(
+                  icon: const Icon(Icons.repeat),
+                  label: Text(
+                    hard.$1 == hard.$2
+                        ? 'Отработать такт ${hard.$1}'
+                        : 'Отработать такты ${hard.$1}–${hard.$2}',
+                  ),
+                  // Start slower than this run; the loop speeds up as it goes.
+                  onPressed: () => Navigator.of(context).pushReplacement(
+                    MaterialPageRoute<void>(
+                      builder: (_) => LessonScreen(
+                        lesson: hardExcerpt,
+                        loop: true,
+                        initialSpeed: (speed - 0.25).clamp(0.5, 1.0),
+                      ),
+                    ),
+                  ),
+                ),
               if (next != null)
                 FilledButton.tonalIcon(
                   icon: const Icon(Icons.skip_next),
@@ -163,10 +193,18 @@ String? _tendency(LessonResult r) {
 }
 
 class StarsRow extends StatelessWidget {
-  const StarsRow({super.key, required this.stars, this.size = 20});
+  const StarsRow({
+    super.key,
+    required this.stars,
+    this.size = 20,
+    this.animate = false,
+  });
 
   final int stars;
   final double size;
+
+  /// Earned stars pop in one after another.
+  final bool animate;
 
   @override
   Widget build(BuildContext context) {
@@ -175,11 +213,26 @@ class StarsRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < 3; i++)
-          Icon(
-            i < stars ? Icons.star_rounded : Icons.star_outline_rounded,
-            color: i < stars ? Colors.amber : Colors.grey,
-            size: size,
-          ),
+          if (animate && i < stars)
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: Duration(milliseconds: 500 + 300 * i),
+              // Each star waits for the previous one, then bounces in.
+              curve: Interval(
+                (300 * i) / (500 + 300 * i),
+                1,
+                curve: Curves.elasticOut,
+              ),
+              builder: (context, v, child) =>
+                  Transform.scale(scale: v, child: child),
+              child: Icon(Icons.star_rounded, color: Colors.amber, size: size),
+            )
+          else
+            Icon(
+              i < stars ? Icons.star_rounded : Icons.star_outline_rounded,
+              color: i < stars ? Colors.amber : Colors.grey,
+              size: size,
+            ),
       ],
     );
   }

@@ -148,4 +148,49 @@ void main() {
       expect(game.notes.first.judgement, Judgement.late);
     },
   );
+
+  testWithGame<LessonGame>(
+    'loop: passes repeat, tempo adapts, never finishes',
+    () {
+      t = FakeTime();
+      // 3 one-beat notes at 60 BPM -> one 4-beat bar per pass.
+      final game = LessonGame(lesson: testLesson(), now: t.source, loop: true);
+      for (final name in [Overlays.hud, Overlays.menu]) {
+        game.overlays.addEntry(name, (_, _) => const SizedBox());
+      }
+      return game;
+    },
+    (game) async {
+      final phases = <PlaybackPhase>[];
+      game.phase.addListener(() => phases.add(game.phase.value));
+      game.setSpeed(0.7);
+      game.start();
+      expect(game.pass.value, 1);
+
+      // Pass 1: play everything right -> tempo goes up.
+      runTo(game, 4 / 0.7); // count-in
+      for (final (i, midi) in [(0, 40), (1, 46), (2, 52)]) {
+        game.addNoteEvents(pluck(game.playback.time, midi));
+        runTo(game, (i == 2 ? 2.2 : 1) / 0.7); // pass ends on the bar line
+      }
+      expect(game.pass.value, 2);
+      expect(game.lastPassAccuracy.value, 1.0);
+      expect(game.playback.speed, closeTo(0.8, 1e-9));
+      expect(game.playback.phase, PlaybackPhase.countIn);
+      expect(game.notes.every((n) => n.judgement == null), isTrue);
+
+      // Pass 2: silence -> tempo goes down.
+      runTo(game, 9 / 0.8);
+      expect(game.pass.value, 3);
+      expect(game.lastPassAccuracy.value, 0);
+      expect(game.playback.speed, closeTo(0.7, 1e-9));
+
+      expect(phases, isNot(contains(PlaybackPhase.finished)));
+      expect(game.result().scored, isFalse);
+
+      // Manual restart resets the pass counter.
+      game.start();
+      expect(game.pass.value, 1);
+    },
+  );
 }

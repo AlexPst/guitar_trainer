@@ -154,4 +154,16 @@ void main() {
       expect(game.notes.every((n) => n.mirrored), isTrue);
     },
   );
+
+  testWithGame<LessonGame>('notes off screen are not drawn', create, (
+    game,
+  ) async {
+    game.start();
+    game.update(0); // count-in: song at -4 s, notes 4+ s to the right
+    expect(game.notes[0].isVisible, isTrue); // x = hitX + 1040 < 1280
+    expect(game.notes[2].isVisible, isFalse); // 6 s ahead: past the edge
+    t.advance(30);
+    game.update(0);
+    expect(game.notes.every((n) => !n.isVisible), isTrue); // all passed
+  });
 }

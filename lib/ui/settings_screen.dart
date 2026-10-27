@@ -147,6 +147,31 @@ class _SettingsListState extends ConsumerState<_SettingsList> {
         ),
 
         const _Header('Вид'),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: SegmentedButton<AppTheme>(
+            segments: const [
+              ButtonSegment(
+                value: AppTheme.system,
+                label: Text('Как в системе'),
+                icon: Icon(Icons.brightness_auto),
+              ),
+              ButtonSegment(
+                value: AppTheme.light,
+                label: Text('Светлая'),
+                icon: Icon(Icons.light_mode),
+              ),
+              ButtonSegment(
+                value: AppTheme.dark,
+                label: Text('Тёмная'),
+                icon: Icon(Icons.dark_mode),
+              ),
+            ],
+            selected: {s.theme},
+            onSelectionChanged: (v) =>
+                _change((x) => x.copyWith(theme: v.single)),
+          ),
+        ),
         SwitchListTile(
           title: const Text('Для левши'),
           subtitle: const Text(

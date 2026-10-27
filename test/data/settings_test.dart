@@ -64,4 +64,12 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('settings'), contains('0.1'));
   });
+
+  test('theme is stored by name, unknown falls back to system', () {
+    expect(Settings().theme, AppTheme.system);
+    final dark = Settings(theme: AppTheme.dark);
+    expect(dark.toJson()['theme'], 'dark');
+    expect(Settings.fromJson(dark.toJson()).theme, AppTheme.dark);
+    expect(Settings.fromJson({'theme': 'neon'}).theme, AppTheme.system);
+  });
 }
