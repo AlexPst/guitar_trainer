@@ -8,6 +8,7 @@ import 'flame_sandbox_screen.dart';
 import 'lesson_screen.dart';
 import 'mic_test_screen.dart';
 import 'result_screen.dart';
+import 'settings_screen.dart';
 import 'tuner_screen.dart';
 
 /// Main menu: list of lessons plus entry points to the tuner and debug screens.
@@ -31,6 +32,11 @@ class LessonListScreen extends ConsumerWidget {
             tooltip: 'Тюнер',
             icon: const Icon(Icons.tune),
             onPressed: () => open(const TunerScreen()),
+          ),
+          IconButton(
+            tooltip: 'Настройки',
+            icon: const Icon(Icons.settings),
+            onPressed: () => open(const SettingsScreen()),
           ),
           PopupMenuButton<Widget>(
             tooltip: 'Отладка',

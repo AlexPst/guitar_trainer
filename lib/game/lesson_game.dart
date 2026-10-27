@@ -42,6 +42,8 @@ class LessonGame extends FlameGame {
     this.metronome,
     TimeSource? now,
     this.calibrationOffset = 0,
+    this.hitWindow = 0.12,
+    this.leftHanded = false,
     LessonMode mode = LessonMode.tempo,
     double speed = 1,
   }) : playback = LessonPlayback(lesson, clock: SongClock(now: now)),
@@ -62,6 +64,22 @@ class LessonGame extends FlameGame {
 
   /// Input latency, seconds; see [TempoScorer.calibrationOffset].
   final double calibrationOffset;
+
+  /// See [TempoScorer.hitWindow].
+  final double hitWindow;
+
+  /// Mirrored layout: hit line on the right, notes moving left to right.
+  final bool leftHanded;
+
+  /// X of the hit line in the current layout.
+  double get hitX =>
+      leftHanded ? SceneLayout.width - SceneLayout.hitX : SceneLayout.hitX;
+
+  /// Screen X of something happening at [eventTime] (lesson seconds).
+  double xAt(double eventTime) {
+    final x = SceneLayout.timeToX(eventTime, playback.time);
+    return leftHanded ? SceneLayout.width - x : x;
+  }
 
   /// Analysis delay of heard notes; see [TempoScorer.inputLag].
   double inputLag = 0;
@@ -106,6 +124,7 @@ class LessonGame extends FlameGame {
           note: n,
           time: lesson.noteTime(n),
           length: lesson.noteDuration(n),
+          mirrored: leftHanded,
         ),
     ];
     _countIn = CountInComponent();
@@ -151,6 +170,7 @@ class LessonGame extends FlameGame {
             speed: playback.speed,
             calibrationOffset: calibrationOffset,
             inputLag: inputLag,
+            hitWindow: hitWindow,
           )
         : null;
     _wait = mode == LessonMode.wait
@@ -220,7 +240,7 @@ class LessonGame extends FlameGame {
     score.value = scoreKeeper.score;
     combo.value = scoreKeeper.combo;
 
-    final at = Vector2(SceneLayout.hitX, note.position.y);
+    final at = Vector2(hitX, note.position.y);
     final color = judgementColor(r.judgement);
     if (r.judgement.isPlayed) world.add(hitBurst(at, color));
     final label = judgementLabel(r.judgement);
@@ -260,7 +280,7 @@ class LessonGame extends FlameGame {
     var currentFound = false;
     for (var i = 0; i < notes.length; i++) {
       final n = notes[i];
-      n.position.x = SceneLayout.timeToX(n.time, t);
+      n.position.x = xAt(n.time);
       final isCurrent = waitIndex != null
           ? i == waitIndex
           : !currentFound && n.time + currentWindow >= t;

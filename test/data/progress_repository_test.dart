@@ -58,6 +58,18 @@ void main() {
     expect(r.loadAll().keys, ['ok']);
   });
 
+  test('clear removes only progress', () async {
+    SharedPreferences.setMockInitialValues({
+      'progress.a': '{"bestAccuracy":0.9,"bestScore":90,"stars":2}',
+      'settings': '{}',
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final r = ProgressRepository(prefs);
+    await r.clear();
+    expect(r.loadAll(), isEmpty);
+    expect(prefs.getString('settings'), '{}');
+  });
+
   test('unlock rules', () {
     const ids = ['a', 'b', 'c', 'd'];
     LessonProgress p(int stars) =>

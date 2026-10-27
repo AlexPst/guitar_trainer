@@ -35,15 +35,13 @@ class TabHighwayComponent extends Component with HasGameReference<LessonGame> {
 
     final grid = game.playback.grid;
     final t = game.playback.time;
-    const pps = SceneLayout.pixelsPerSecond;
-    final first = ((t - SceneLayout.hitX / pps) / grid.secondsPerBeat).floor();
-    final last =
-        ((t + (SceneLayout.width - SceneLayout.hitX) / pps) /
-                grid.secondsPerBeat)
-            .ceil();
+    // Whole screen width either side covers both normal and mirrored layout.
+    const span = SceneLayout.width / SceneLayout.pixelsPerSecond;
+    final first = ((t - span) / grid.secondsPerBeat).floor();
+    final last = ((t + span) / grid.secondsPerBeat).ceil();
     for (var i = first; i <= last; i++) {
       if (i < 0) continue; // no grid during the count-in
-      final x = SceneLayout.timeToX(i * grid.secondsPerBeat, t);
+      final x = game.xAt(i * grid.secondsPerBeat);
       final isBar = i % grid.beatsPerBar == 0;
       canvas.drawLine(
         Offset(x, top),
@@ -63,7 +61,7 @@ class TabHighwayComponent extends Component with HasGameReference<LessonGame> {
   }
 }
 
-class HitLineComponent extends Component {
+class HitLineComponent extends Component with HasGameReference<LessonGame> {
   final _glow = Paint()
     ..color = const Color(0x33FFC107)
     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
@@ -73,9 +71,9 @@ class HitLineComponent extends Component {
 
   @override
   void render(Canvas canvas) {
-    const x = SceneLayout.hitX;
+    final x = game.hitX;
     canvas.drawRect(
-      const Rect.fromLTRB(
+      Rect.fromLTRB(
         x - 12,
         SceneLayout.highwayTop,
         x + 12,
@@ -84,8 +82,8 @@ class HitLineComponent extends Component {
       _glow,
     );
     canvas.drawLine(
-      const Offset(x, SceneLayout.highwayTop - 10),
-      const Offset(x, SceneLayout.highwayBottom + 10),
+      Offset(x, SceneLayout.highwayTop - 10),
+      Offset(x, SceneLayout.highwayBottom + 10),
       _line,
     );
   }
@@ -95,18 +93,25 @@ enum NoteState { upcoming, current, passed }
 
 /// A fret number on a string, with a tail showing its duration.
 class NoteComponent extends PositionComponent {
-  NoteComponent({required this.note, required this.time, required this.length})
-    : super(
-        anchor: Anchor.center,
-        size: Vector2.all(SceneLayout.noteRadius * 2),
-        position: Vector2(0, SceneLayout.stringY(note.string)),
-      );
+  NoteComponent({
+    required this.note,
+    required this.time,
+    required this.length,
+    this.mirrored = false,
+  }) : super(
+         anchor: Anchor.center,
+         size: Vector2.all(SceneLayout.noteRadius * 2),
+         position: Vector2(0, SceneLayout.stringY(note.string)),
+       );
 
   final TabNote note;
 
   /// Start and length in lesson seconds.
   final double time;
   final double length;
+
+  /// Left-handed layout: the duration tail points left.
+  final bool mirrored;
 
   NoteState state = NoteState.upcoming;
 
@@ -158,7 +163,15 @@ class NoteComponent extends PositionComponent {
     const r = SceneLayout.noteRadius;
     final tail = length * SceneLayout.pixelsPerSecond;
     canvas.drawRRect(
-      RRect.fromLTRBR(r, r - 7, r + tail, r + 7, const Radius.circular(7)),
+      mirrored
+          ? RRect.fromLTRBR(r - tail, r - 7, r, r + 7, const Radius.circular(7))
+          : RRect.fromLTRBR(
+              r,
+              r - 7,
+              r + tail,
+              r + 7,
+              const Radius.circular(7),
+            ),
       judgement == null ? _tails[state]! : _judgedTails[judgement]!,
     );
     canvas.drawCircle(

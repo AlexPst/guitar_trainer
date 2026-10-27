@@ -80,6 +80,12 @@ class ProgressRepository {
     await _prefs.setString('$_prefix$id', jsonEncode(progress.toJson()));
     return old == null ? RecordOutcome.first : RecordOutcome.improved;
   }
+
+  Future<void> clear() async {
+    for (final key in _prefs.getKeys().where((k) => k.startsWith(_prefix))) {
+      await _prefs.remove(key);
+    }
+  }
 }
 
 /// Which lessons can be played. The first always; each next one once the

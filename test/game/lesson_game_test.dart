@@ -128,4 +128,30 @@ void main() {
       closeTo(SceneLayout.pixelsPerSecond, 1e-3),
     );
   });
+
+  testWithGame<LessonGame>(
+    'left-handed layout mirrors positions',
+    () {
+      t = FakeTime();
+      final game = LessonGame(
+        lesson: testLesson(),
+        now: t.source,
+        leftHanded: true,
+      );
+      for (final name in [Overlays.hud, Overlays.menu]) {
+        game.overlays.addEntry(name, (_, _) => const SizedBox());
+      }
+      return game;
+    },
+    (game) async {
+      expect(game.hitX, SceneLayout.width - SceneLayout.hitX);
+      // Song at 0: note 0 on the hit line, note 1 one second to the LEFT.
+      expect(game.notes[0].position.x, closeTo(game.hitX, 1e-3));
+      expect(
+        game.notes[1].position.x,
+        closeTo(game.hitX - SceneLayout.pixelsPerSecond, 1e-3),
+      );
+      expect(game.notes.every((n) => n.mirrored), isTrue);
+    },
+  );
 }

@@ -126,4 +126,26 @@ void main() {
     game.setMode(LessonMode.tempo);
     expect(game.mode, LessonMode.wait);
   });
+
+  testWithGame<LessonGame>(
+    'hit window from settings',
+    () {
+      t = FakeTime();
+      final game = LessonGame(
+        lesson: testLesson(),
+        now: t.source,
+        hitWindow: 0.2,
+      );
+      for (final name in [Overlays.hud, Overlays.menu]) {
+        game.overlays.addEntry(name, (_, _) => const SizedBox());
+      }
+      return game;
+    },
+    (game) async {
+      game.start();
+      runTo(game, 4.2);
+      game.addNoteEvents(pluck(0.17, 40)); // outside 120 ms, inside 200 ms
+      expect(game.notes.first.judgement, Judgement.late);
+    },
+  );
 }

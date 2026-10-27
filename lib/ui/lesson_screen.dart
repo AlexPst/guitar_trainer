@@ -9,6 +9,7 @@ import '../audio/mic_capture.dart';
 import '../audio/note_event_source.dart';
 import '../audio/soloud_metronome.dart';
 import '../data/progress_repository.dart';
+import '../data/settings.dart';
 import '../engine/lesson_playback.dart';
 import '../game/lesson_game.dart';
 import '../music/lesson.dart';
@@ -54,8 +55,13 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
     // Each part may fail on its own; the lesson still runs without it, and
     // the user is told what is missing.
     final problems = <String>[];
+    // Settings that fail to load fall back to defaults.
+    final settings = await ref
+        .read(settingsProvider.future)
+        .catchError((Object _) => Settings());
     try {
-      _metronome = await SoloudMetronome.create();
+      _metronome = await SoloudMetronome.create()
+        ..volume = settings.metronomeVolume;
     } on Object catch (e) {
       problems.add('Метроном недоступен: $e');
     }
@@ -65,6 +71,9 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
       metronome: _metronome,
       mode: widget.initialMode,
       speed: widget.initialSpeed,
+      calibrationOffset: settings.calibrationOffset,
+      hitWindow: settings.hitWindow,
+      leftHanded: settings.leftHanded,
     );
     game.phase.addListener(() {
       if (game.phase.value == PlaybackPhase.finished) _onFinished(game);
@@ -73,7 +82,10 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
 
     try {
       await _mic.start();
-      final source = NoteEventSource(sampleRate: _mic.sampleRate);
+      final source = NoteEventSource(
+        sampleRate: _mic.sampleRate,
+        minLevelDbfs: settings.micThresholdDbfs,
+      );
       _source = source;
       // Events lag the sound by the analysis delay plus one mic chunk.
       game.inputLag = source.delay + 0.05;

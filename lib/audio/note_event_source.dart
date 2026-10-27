@@ -12,20 +12,28 @@ import 'pitch_tracker.dart';
 ///
 /// Events are released in time order once every attack up to their time has
 /// been decided, i.e. about [delay] seconds after they were heard.
+///
+/// Sound below `minLevelDbfs` is treated as silence by both detectors.
 class NoteEventSource {
   NoteEventSource({
     required this.sampleRate,
+    double minLevelDbfs = -50,
     OnsetDetector? onsets,
     PitchTracker? pitch,
   }) : _onsets =
-           onsets ?? OnsetDetector(sampleRate: sampleRate, confirmAfter: 0.06),
+           onsets ??
+           OnsetDetector(
+             sampleRate: sampleRate,
+             confirmAfter: 0.06,
+             minLevelDbfs: minLevelDbfs,
+           ),
        _pitch =
            pitch ??
            PitchTracker(
              sampleRate: sampleRate,
              windowSize: 2048,
              hopSize: 1024,
-             minLevelDbfs: -50,
+             minLevelDbfs: minLevelDbfs,
              smoothing: 1,
              dropAfterSilentFrames: 1,
            );
