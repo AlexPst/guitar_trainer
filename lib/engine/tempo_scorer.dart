@@ -26,6 +26,7 @@ class TempoScorer {
     this.perfectWindow = 0.05,
     this.pitchSettle = 0.1,
     this.calibrationOffset = 0,
+    this.inputLag = 0,
     this.speed = 1,
   }) : _times = [for (final n in lesson.notes) lesson.noteTime(n)],
        _targets = [for (final n in lesson.notes) n.midi(tuning)],
@@ -43,9 +44,13 @@ class TempoScorer {
   /// Input latency: event times are shifted back by this many seconds.
   final double calibrationOffset;
 
+  /// How long after a sound its events reach [addEvent] (analysis delay),
+  /// real seconds. Windows close this much later so late notes still count.
+  final double inputLag;
+
   /// Playback speed (0.5..1). At half speed a real-time window covers half
-  /// as much song time.
-  final double speed;
+  /// as much song time. May change between notes (e.g. in pause).
+  double speed;
 
   final List<double> _times;
   final List<int> _targets;
@@ -88,7 +93,7 @@ class TempoScorer {
 
   /// Closes windows that have passed. [songTime] is the uncorrected clock.
   List<NoteResult> advance(double songTime) {
-    final t = songTime - calibrationOffset;
+    final t = songTime - calibrationOffset - inputLag * speed;
     final out = <NoteResult>[];
     for (var i = _firstOpen; i < _times.length; i++) {
       if (_times[i] + _window + pitchSettle >= t) break;

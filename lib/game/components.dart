@@ -2,7 +2,9 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart' show Colors;
 import 'package:flutter/painting.dart';
 
+import '../engine/note_result.dart';
 import '../music/lesson.dart';
+import 'feedback.dart';
 import 'layout.dart';
 import 'lesson_game.dart';
 
@@ -108,6 +110,9 @@ class NoteComponent extends PositionComponent {
 
   NoteState state = NoteState.upcoming;
 
+  /// Set once the note is judged; overrides [state] colours.
+  Judgement? judgement;
+
   static final _fills = {
     NoteState.upcoming: Paint()..color = const Color(0xFFE5602B),
     NoteState.current: Paint()..color = const Color(0xFFFFC107),
@@ -116,6 +121,13 @@ class NoteComponent extends PositionComponent {
   static final _tails = {
     for (final e in _fills.entries)
       e.key: Paint()..color = e.value.color.withAlpha(90),
+  };
+  static final _judged = {
+    for (final j in Judgement.values) j: Paint()..color = judgementColor(j),
+  };
+  static final _judgedTails = {
+    for (final j in Judgement.values)
+      j: Paint()..color = judgementColor(j).withAlpha(90),
   };
   static final _ring = Paint()
     ..color = Colors.white
@@ -147,10 +159,14 @@ class NoteComponent extends PositionComponent {
     final tail = length * SceneLayout.pixelsPerSecond;
     canvas.drawRRect(
       RRect.fromLTRBR(r, r - 7, r + tail, r + 7, const Radius.circular(7)),
-      _tails[state]!,
+      judgement == null ? _tails[state]! : _judgedTails[judgement]!,
     );
-    canvas.drawCircle(const Offset(r, r), r, _fills[state]!);
-    if (state == NoteState.current) {
+    canvas.drawCircle(
+      const Offset(r, r),
+      r,
+      judgement == null ? _fills[state]! : _judged[judgement]!,
+    );
+    if (judgement == null && state == NoteState.current) {
       canvas.drawCircle(const Offset(r, r), r + 3, _ring);
     }
   }

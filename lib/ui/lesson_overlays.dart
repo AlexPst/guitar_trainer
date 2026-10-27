@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../engine/lesson_playback.dart';
 import '../engine/song_clock.dart';
+import '../engine/note_result.dart';
 import '../game/lesson_game.dart';
 
 /// Top bar over the game: title, tempo, progress and pause button.
@@ -12,6 +13,13 @@ class LessonHud extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([game.phase, game.modeNotifier]),
+      builder: (context, _) => _build(context),
+    );
+  }
+
+  Widget _build(BuildContext context) {
     return Align(
       alignment: Alignment.topCenter,
       child: Padding(
@@ -23,12 +31,13 @@ class LessonHud extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ValueListenableBuilder(
-                    valueListenable: game.phase,
-                    builder: (context, _, _) => Text(
-                      '${game.lesson.title} · '
-                      '${(game.lesson.bpm * game.playback.speed).round()} BPM'
-                      '${game.playback.speed < 1 ? ' (${(game.playback.speed * 100).round()}%)' : ''}',
+                  Builder(
+                    builder: (context) => Text(
+                      game.mode == LessonMode.wait
+                          ? '${game.lesson.title} · ожидание'
+                          : '${game.lesson.title} · '
+                                '${(game.lesson.bpm * game.playback.speed).round()} BPM'
+                                '${game.playback.speed < 1 ? ' (${(game.playback.speed * 100).round()}%)' : ''}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -53,6 +62,10 @@ class LessonHud extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
+            _ScoreBox(game: game),
+            const SizedBox(width: 12),
+            _HeardNote(game: game),
+            const SizedBox(width: 12),
             IconButton.filledTonal(
               tooltip: 'Пауза',
               icon: const Icon(Icons.pause),
@@ -91,6 +104,17 @@ class _LessonMenuState extends State<LessonMenu> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
+        if (ready) ...[
+          SegmentedButton<LessonMode>(
+            segments: const [
+              ButtonSegment(value: LessonMode.tempo, label: Text('В темпе')),
+              ButtonSegment(value: LessonMode.wait, label: Text('Ожидание')),
+            ],
+            selected: {game.mode},
+            onSelectionChanged: (s) => setState(() => game.setMode(s.single)),
+          ),
+          const SizedBox(height: 16),
+        ],
         Text(
           'Темп: $percent% · ${(game.lesson.bpm * game.playback.speed).round()} BPM',
         ),
@@ -140,6 +164,12 @@ class LessonFinished extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(game.lesson.title, textAlign: TextAlign.center),
+        const SizedBox(height: 12),
+        Text(
+          _summary(game),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
         const SizedBox(height: 16),
         FilledButton.icon(
           icon: const Icon(Icons.replay),
@@ -175,6 +205,81 @@ class _Panel extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+String _summary(LessonGame game) {
+  final c = game.scoreKeeper.counts;
+  final played = c[Judgement.hit]! + c[Judgement.early]! + c[Judgement.late]!;
+  final total = game.lesson.notes.length;
+  if (game.mode == LessonMode.wait) return 'Сыграно нот: $played из $total';
+  return 'Счёт: ${game.scoreKeeper.score} · сыграно $played из $total\n'
+      'Точно ${c[Judgement.hit]}, рано/поздно '
+      '${c[Judgement.early]! + c[Judgement.late]!}, октава ${c[Judgement.octave]}, '
+      'не та нота ${c[Judgement.wrongPitch]}, промах ${c[Judgement.miss]}\n'
+      'Лучшая серия: ${game.scoreKeeper.maxCombo}';
+}
+
+/// Score and combo in tempo mode.
+class _ScoreBox extends StatelessWidget {
+  const _ScoreBox({required this.game});
+
+  final LessonGame game;
+
+  @override
+  Widget build(BuildContext context) {
+    if (game.mode == LessonMode.wait) return const SizedBox.shrink();
+    const style = TextStyle(color: Colors.white, fontWeight: FontWeight.bold);
+    return ListenableBuilder(
+      listenable: Listenable.merge([game.score, game.combo]),
+      builder: (context, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('${game.score.value}', style: style.copyWith(fontSize: 24)),
+          Text(
+            game.combo.value >= 2 ? 'серия ×${game.combo.value}' : ' ',
+            style: style.copyWith(color: Colors.amber, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The note the microphone hears right now.
+class _HeardNote extends StatelessWidget {
+  const _HeardNote({required this.game});
+
+  final LessonGame game;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: game.heard,
+      builder: (context, name, _) => Container(
+        width: 64,
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white10,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.hearing, color: Colors.white54, size: 16),
+            Text(
+              name ?? '—',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );

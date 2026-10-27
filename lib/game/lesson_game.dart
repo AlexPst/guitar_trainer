@@ -5,9 +5,16 @@ import 'package:flutter/widgets.dart';
 
 import '../engine/lesson_playback.dart';
 import '../engine/metronome_scheduler.dart';
+import '../engine/note_event.dart';
+import '../engine/note_result.dart';
+import '../engine/score_keeper.dart';
 import '../engine/song_clock.dart';
+import '../engine/tempo_scorer.dart';
+import '../engine/wait_mode.dart';
 import '../music/lesson.dart';
+import '../music/pitch.dart';
 import 'components.dart';
+import 'feedback.dart';
 import 'layout.dart';
 
 abstract final class Overlays {
@@ -16,37 +23,71 @@ abstract final class Overlays {
   static const finished = 'finished';
 }
 
+enum LessonMode {
+  /// Notes move with the metronome; timing is judged.
+  tempo,
+
+  /// The song stops on each note until it is played; no score.
+  wait,
+}
+
 /// Lesson scene. All motion is derived from [playback] time each frame, so
 /// pausing and seeking need no special handling in components.
+///
+/// Heard notes come in through [addNoteEvents]; judging is done by the pure
+/// Dart engine ([TempoScorer] or [WaitModeSession]).
 class LessonGame extends FlameGame {
-  LessonGame({required this.lesson, this.metronome, TimeSource? now})
-    : playback = LessonPlayback(lesson, clock: SongClock(now: now)),
-      super(
-        camera: CameraComponent.withFixedResolution(
-          width: SceneLayout.width,
-          height: SceneLayout.height,
-        ),
-      ) {
-    _scheduler = MetronomeScheduler(
-      playback.grid,
-      lastIndex: playback.lastBeatIndex,
-    );
+  LessonGame({
+    required this.lesson,
+    this.metronome,
+    TimeSource? now,
+    this.calibrationOffset = 0,
+  }) : playback = LessonPlayback(lesson, clock: SongClock(now: now)),
+       super(
+         camera: CameraComponent.withFixedResolution(
+           width: SceneLayout.width,
+           height: SceneLayout.height,
+         ),
+       ) {
+    _scheduler = _newScheduler();
   }
 
   final Lesson lesson;
   final LessonPlayback playback;
   final MetronomeSink? metronome;
-  late final MetronomeScheduler _scheduler;
 
-  /// For overlays; updated from [update].
+  /// Input latency, seconds; see [TempoScorer.calibrationOffset].
+  final double calibrationOffset;
+
+  /// Analysis delay of heard notes; see [TempoScorer.inputLag].
+  double inputLag = 0;
+
+  final modeNotifier = ValueNotifier<LessonMode>(LessonMode.tempo);
+  LessonMode get mode => modeNotifier.value;
+
+  late MetronomeScheduler _scheduler;
+  TempoScorer? _scorer;
+  WaitModeSession? _wait;
+  final scoreKeeper = ScoreKeeper();
+
+  /// For overlays; updated from [update] and [addNoteEvents].
   final progress = ValueNotifier<double>(0);
   final phase = ValueNotifier<PlaybackPhase>(PlaybackPhase.ready);
+  final score = ValueNotifier<int>(0);
+  final combo = ValueNotifier<int>(0);
+
+  /// Name of the note currently heard, e.g. "A2", or null.
+  final heard = ValueNotifier<String?>(null);
+  double _heardAge = 0;
 
   late final List<NoteComponent> notes;
   late final CountInComponent _countIn;
 
   /// Notes stay "current" this long after their start, seconds.
   static const currentWindow = 0.12;
+
+  /// How long the heard note stays shown after the last pitched frame.
+  static const heardHold = 0.4;
 
   @override
   Color backgroundColor() => const Color(0xFF121010);
@@ -77,8 +118,38 @@ class LessonGame extends FlameGame {
     _layout();
   }
 
+  // In wait mode the metronome only counts in.
+  MetronomeScheduler _newScheduler() => MetronomeScheduler(
+    playback.grid,
+    lastIndex: mode == LessonMode.wait ? -1 : playback.lastBeatIndex,
+  );
+
+  void setMode(LessonMode value) {
+    if (playback.phase != PlaybackPhase.ready) return;
+    modeNotifier.value = value;
+    _refreshOverlays();
+  }
+
   void start() {
+    for (final n in notes) {
+      n.judgement = null;
+    }
+    scoreKeeper.reset();
+    score.value = 0;
+    combo.value = 0;
+    _scheduler = _newScheduler();
     playback.start();
+    _scorer = mode == LessonMode.tempo
+        ? TempoScorer(
+            lesson,
+            speed: playback.speed,
+            calibrationOffset: calibrationOffset,
+            inputLag: inputLag,
+          )
+        : null;
+    _wait = mode == LessonMode.wait
+        ? WaitModeSession(lesson, playback.clock)
+        : null;
     _syncMetronome();
     _refreshOverlays();
   }
@@ -97,11 +168,15 @@ class LessonGame extends FlameGame {
 
   void setSpeed(double speed) {
     playback.speed = speed;
-    if (playback.phase case PlaybackPhase.countIn || PlaybackPhase.playing) {
-      _syncMetronome();
-    }
+    _scorer?.speed = playback.speed;
+    if (_isRunning) _syncMetronome();
     _refreshOverlays();
   }
+
+  bool get _isRunning => switch (playback.phase) {
+    PlaybackPhase.countIn || PlaybackPhase.playing => true,
+    _ => false,
+  };
 
   void _syncMetronome() {
     final m = metronome;
@@ -113,21 +188,60 @@ class LessonGame extends FlameGame {
     _scheduler.due(playback.time).forEach(m.schedule);
   }
 
+  /// Heard notes from the microphone, in song time and time order.
+  void addNoteEvents(List<NoteEvent> events) {
+    for (final e in events) {
+      final f = e.frequency;
+      if (f != null) {
+        heard.value = NoteReading.fromFrequency(f).name;
+        _heardAge = 0;
+      }
+      if (!_isRunning) continue;
+      final scorer = _scorer;
+      if (scorer != null) {
+        scorer.addEvent(e).forEach(_apply);
+      }
+      final r = _wait?.addEvent(e);
+      if (r != null) _apply(r);
+    }
+  }
+
+  void _apply(NoteResult r) {
+    final note = notes[r.noteIndex];
+    note.judgement = r.judgement;
+    scoreKeeper.add(r);
+    score.value = scoreKeeper.score;
+    combo.value = scoreKeeper.combo;
+
+    final at = Vector2(SceneLayout.hitX, note.position.y);
+    final color = judgementColor(r.judgement);
+    if (r.judgement.isPlayed) world.add(hitBurst(at, color));
+    final label = judgementLabel(r.judgement);
+    if (label != null) {
+      world.add(
+        FeedbackText(label, at - Vector2(0, SceneLayout.noteRadius), color),
+      );
+    }
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
+    _heardAge += dt;
+    if (_heardAge > heardHold) heard.value = null;
+
+    if (_isRunning) {
+      _wait?.update();
+      _scorer?.advance(playback.time).forEach(_apply);
+    }
     if (playback.checkFinished()) {
       metronome?.cancelPending();
+      // Notes still open when the song ends were not played.
+      _scorer?.advance(double.infinity).forEach(_apply);
       _refreshOverlays();
     }
-    final running = switch (playback.phase) {
-      PlaybackPhase.countIn || PlaybackPhase.playing => true,
-      _ => false,
-    };
-    if (running && metronome != null) {
-      for (final beat in _scheduler.due(playback.time)) {
-        metronome!.schedule(beat);
-      }
+    if (_isRunning && metronome != null) {
+      _scheduler.due(playback.time).forEach(metronome!.schedule);
     }
     _layout();
   }
@@ -135,14 +249,20 @@ class LessonGame extends FlameGame {
   /// Positions notes and the count-in from the current song time.
   void _layout() {
     final t = playback.time;
+    final waitIndex = _wait?.currentIndex;
     var currentFound = false;
-    for (final n in notes) {
+    for (var i = 0; i < notes.length; i++) {
+      final n = notes[i];
       n.position.x = SceneLayout.timeToX(n.time, t);
-      if (n.time + currentWindow < t) {
-        n.state = NoteState.passed;
-      } else if (!currentFound) {
+      final isCurrent = waitIndex != null
+          ? i == waitIndex
+          : !currentFound && n.time + currentWindow >= t;
+      if (isCurrent) {
         n.state = NoteState.current;
         currentFound = true;
+      } else if (n.time + currentWindow < t ||
+          (waitIndex != null && i < waitIndex)) {
+        n.state = NoteState.passed;
       } else {
         n.state = NoteState.upcoming;
       }

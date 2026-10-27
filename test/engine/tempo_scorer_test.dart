@@ -214,6 +214,17 @@ void main() {
     );
   });
 
+  test('inputLag keeps the window open for events still in analysis', () {
+    final s = TempoScorer(scale, inputLag: 0.1);
+    // 0.25 s after the first note its window (0.12 + 0.1 settle) would be
+    // closed without the lag.
+    expect(s.advance(0.25), isEmpty);
+    final r = s.addEvent(NoteEvent(0.09, 82.41, onset: true));
+    expect(r.single.judgement, Judgement.late);
+    expect(s.advance(0.45).map((r) => r.noteIndex), isEmpty);
+    expect(s.advance(0.95).single.judgement, Judgement.miss);
+  });
+
   test('at 50% speed windows keep their real-time width', () {
     // 80 ms of song time = 160 ms real at half speed: outside the window.
     final s = TempoScorer(scale, speed: 0.5);

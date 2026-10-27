@@ -40,11 +40,19 @@ class PitchTracker {
   int _sinceLastFrame = 0;
   final List<double> _recent = [];
   int _silentFrames = 0;
+  int _samples = 0;
 
   /// Feeds samples; returns one reading per analysed frame (possibly none).
-  List<double?> add(Float32List chunk) {
-    final out = <double?>[];
+  List<double?> add(Float32List chunk) => [
+    for (final (_, f) in addTimed(chunk)) f,
+  ];
+
+  /// Like [add], with the number of samples consumed so far at each frame,
+  /// i.e. the position just after the window's last sample.
+  List<(int, double?)> addTimed(Float32List chunk) {
+    final out = <(int, double?)>[];
     for (var i = 0; i < chunk.length; i++) {
+      _samples++;
       _ring[_ringPos] = chunk[i];
       _ringPos = (_ringPos + 1) % windowSize;
       if (_filled < windowSize) _filled++;
@@ -53,13 +61,14 @@ class PitchTracker {
         _window
           ..setRange(0, windowSize - _ringPos, _ring, _ringPos)
           ..setRange(windowSize - _ringPos, windowSize, _ring);
-        out.add(_analyse());
+        out.add((_samples, _analyse()));
       }
     }
     return out;
   }
 
   void reset() {
+    _samples = 0;
     _ringPos = 0;
     _filled = 0;
     _sinceLastFrame = 0;
