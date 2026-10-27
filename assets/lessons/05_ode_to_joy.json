@@ -1,0 +1,42 @@
+{
+  "id": "melody_01",
+  "title": "Ода к радости",
+  "description": "Л. ван Бетховен, тема из 9-й симфонии",
+  "bpm": 80,
+  "timeSignature": [
+    4,
+    4
+  ],
+  "notes": [
+    {"beat": 0, "string": 1, "fret": 0, "duration": 1},
+    {"beat": 1, "string": 1, "fret": 0, "duration": 1},
+    {"beat": 2, "string": 1, "fret": 1, "duration": 1},
+    {"beat": 3, "string": 1, "fret": 3, "duration": 1},
+    {"beat": 4, "string": 1, "fret": 3, "duration": 1},
+    {"beat": 5, "string": 1, "fret": 1, "duration": 1},
+    {"beat": 6, "string": 1, "fret": 0, "duration": 1},
+    {"beat": 7, "string": 2, "fret": 3, "duration": 1},
+    {"beat": 8, "string": 2, "fret": 1, "duration": 1},
+    {"beat": 9, "string": 2, "fret": 1, "duration": 1},
+    {"beat": 10, "string": 2, "fret": 3, "duration": 1},
+    {"beat": 11, "string": 1, "fret": 0, "duration": 1},
+    {"beat": 12, "string": 1, "fret": 0, "duration": 1.5},
+    {"beat": 13.5, "string": 2, "fret": 3, "duration": 0.5},
+    {"beat": 14, "string": 2, "fret": 3, "duration": 2},
+    {"beat": 16, "string": 1, "fret": 0, "duration": 1},
+    {"beat": 17, "string": 1, "fret": 0, "duration": 1},
+    {"beat": 18, "string": 1, "fret": 1, "duration": 1},
+    {"beat": 19, "string": 1, "fret": 3, "duration": 1},
+    {"beat": 20, "string": 1, "fret": 3, "duration": 1},
+    {"beat": 21, "string": 1, "fret": 1, "duration": 1},
+    {"beat": 22, "string": 1, "fret": 0, "duration": 1},
+    {"beat": 23, "string": 2, "fret": 3, "duration": 1},
+    {"beat": 24, "string": 2, "fret": 1, "duration": 1},
+    {"beat": 25, "string": 2, "fret": 1, "duration": 1},
+    {"beat": 26, "string": 2, "fret": 3, "duration": 1},
+    {"beat": 27, "string": 1, "fret": 0, "duration": 1},
+    {"beat": 28, "string": 2, "fret": 3, "duration": 1.5},
+    {"beat": 29.5, "string": 2, "fret": 1, "duration": 0.5},
+    {"beat": 30, "string": 2, "fret": 1, "duration": 2}
+  ]
+}

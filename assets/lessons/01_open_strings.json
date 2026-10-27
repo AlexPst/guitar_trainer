@@ -1,0 +1,23 @@
+{
+  "id": "basics_01",
+  "title": "Открытые струны",
+  "description": "Шесть открытых струн сверху вниз и обратно",
+  "bpm": 70,
+  "timeSignature": [
+    4,
+    4
+  ],
+  "notes": [
+    {"beat": 0, "string": 6, "fret": 0, "duration": 2},
+    {"beat": 2, "string": 5, "fret": 0, "duration": 2},
+    {"beat": 4, "string": 4, "fret": 0, "duration": 2},
+    {"beat": 6, "string": 3, "fret": 0, "duration": 2},
+    {"beat": 8, "string": 2, "fret": 0, "duration": 2},
+    {"beat": 10, "string": 1, "fret": 0, "duration": 2},
+    {"beat": 12, "string": 2, "fret": 0, "duration": 2},
+    {"beat": 14, "string": 3, "fret": 0, "duration": 2},
+    {"beat": 16, "string": 4, "fret": 0, "duration": 2},
+    {"beat": 18, "string": 5, "fret": 0, "duration": 2},
+    {"beat": 20, "string": 6, "fret": 0, "duration": 4}
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "basics_02",
+  "title": "Первые лады: 6 и 5 струны",
+  "description": "Ми, фа, соль, ля, си, до и обратно",
+  "bpm": 70,
+  "timeSignature": [
+    4,
+    4
+  ],
+  "notes": [
+    {"beat": 0, "string": 6, "fret": 0, "duration": 1},
+    {"beat": 1, "string": 6, "fret": 1, "duration": 1},
+    {"beat": 2, "string": 6, "fret": 3, "duration": 1},
+    {"beat": 3, "string": 5, "fret": 0, "duration": 1},
+    {"beat": 4, "string": 5, "fret": 2, "duration": 1},
+    {"beat": 5, "string": 5, "fret": 3, "duration": 1},
+    {"beat": 6, "string": 5, "fret": 3, "duration": 1},
+    {"beat": 7, "string": 5, "fret": 2, "duration": 1},
+    {"beat": 8, "string": 5, "fret": 0, "duration": 1},
+    {"beat": 9, "string": 6, "fret": 3, "duration": 1},
+    {"beat": 10, "string": 6, "fret": 1, "duration": 1},
+    {"beat": 11, "string": 6, "fret": 0, "duration": 4}
+  ]
+}

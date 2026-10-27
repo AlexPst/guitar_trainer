@@ -1,0 +1,36 @@
+{
+  "id": "basics_03",
+  "title": "Хроматика 1-2-3-4",
+  "description": "По одному пальцу на лад, все шесть струн",
+  "bpm": 60,
+  "timeSignature": [
+    4,
+    4
+  ],
+  "notes": [
+    {"beat": 0, "string": 6, "fret": 1, "duration": 1},
+    {"beat": 1, "string": 6, "fret": 2, "duration": 1},
+    {"beat": 2, "string": 6, "fret": 3, "duration": 1},
+    {"beat": 3, "string": 6, "fret": 4, "duration": 1},
+    {"beat": 4, "string": 5, "fret": 1, "duration": 1},
+    {"beat": 5, "string": 5, "fret": 2, "duration": 1},
+    {"beat": 6, "string": 5, "fret": 3, "duration": 1},
+    {"beat": 7, "string": 5, "fret": 4, "duration": 1},
+    {"beat": 8, "string": 4, "fret": 1, "duration": 1},
+    {"beat": 9, "string": 4, "fret": 2, "duration": 1},
+    {"beat": 10, "string": 4, "fret": 3, "duration": 1},
+    {"beat": 11, "string": 4, "fret": 4, "duration": 1},
+    {"beat": 12, "string": 3, "fret": 1, "duration": 1},
+    {"beat": 13, "string": 3, "fret": 2, "duration": 1},
+    {"beat": 14, "string": 3, "fret": 3, "duration": 1},
+    {"beat": 15, "string": 3, "fret": 4, "duration": 1},
+    {"beat": 16, "string": 2, "fret": 1, "duration": 1},
+    {"beat": 17, "string": 2, "fret": 2, "duration": 1},
+    {"beat": 18, "string": 2, "fret": 3, "duration": 1},
+    {"beat": 19, "string": 2, "fret": 4, "duration": 1},
+    {"beat": 20, "string": 1, "fret": 1, "duration": 1},
+    {"beat": 21, "string": 1, "fret": 2, "duration": 1},
+    {"beat": 22, "string": 1, "fret": 3, "duration": 1},
+    {"beat": 23, "string": 1, "fret": 4, "duration": 4}
+  ]
+}

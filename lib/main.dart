@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'ui/home_screen.dart';
+import 'ui/lesson_list_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: GuitarTrainerApp()));
@@ -15,7 +15,7 @@ class GuitarTrainerApp extends StatelessWidget {
     return MaterialApp(
       title: 'Гитарный тренажёр',
       theme: ThemeData(colorSchemeSeed: Colors.deepOrange),
-      home: const HomeScreen(),
+      home: const LessonListScreen(),
     );
   }
 }
