@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/lesson_repository.dart';
 import '../music/lesson.dart';
 import 'flame_sandbox_screen.dart';
+import 'lesson_screen.dart';
 import 'mic_test_screen.dart';
 import 'tuner_screen.dart';
 
@@ -86,15 +87,9 @@ class _LessonTile extends StatelessWidget {
         ].join('\n'),
       ),
       isThreeLine: lesson.description != null,
-      onTap: () => ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(
-              '«${lesson.title}»: игровой экран появится в итерации 3',
-            ),
-          ),
-        ),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => LessonScreen(lesson: lesson)),
+      ),
     );
   }
 }
